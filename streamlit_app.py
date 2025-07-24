@@ -1,48 +1,67 @@
 import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
-from datetime import date
+import pandas as pd
+import datetime
+import numpy as np
 
-st.set_page_config(page_title="Painel BTC", layout="wide")
-st.title("📊 Painel de Análise do Ciclo do Bitcoin")
+# Função para calcular RSI Clássico
+def compute_rsi(data, window=14):
+    delta = data['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
 
-# Seleção de datas
-start = st.date_input("Data inicial", value=date(2021,1,1))
-end = st.date_input("Data final", value=date.today())
+# Função para calcular RSI Estocástico
+def compute_stoch_rsi(data, window=14):
+    rsi = compute_rsi(data, window)
+    stoch_rsi = (rsi - rsi.rolling(window).min()) / (rsi.rolling(window).max() - rsi.rolling(window).min())
+    return stoch_rsi * 100
 
-# Download do preço
-btc = yf.download("BTC-USD", start=start, end=end)
+# Função para identificar halvings do Bitcoin
+def get_halving_dates():
+    return [
+        datetime.datetime(2012, 11, 28),
+        datetime.datetime(2016, 7, 9),
+        datetime.datetime(2020, 5, 11),
+        datetime.datetime(2024, 4, 19)
+    ]
 
-# Seletor de análise
-analise = st.selectbox("Selecione o tipo de análise:", [
-    "RSI Diário",
-    "RSI Estocástico",
-    "Fibonacci",
-    "Média Móvel 200",
-    "Comparar Ciclos"
-])
+# Sidebar
+st.sidebar.title("Painel Bitcoin Pro")
+start_date = st.sidebar.date_input("Data inicial", datetime.date(2018, 1, 1))
+end_date = st.sidebar.date_input("Data final", datetime.date.today())
+ticker = st.sidebar.selectbox("Ativo", ["BTC-USD", "ETH-USD"])
 
-# Gráfico básico
+# Carregar dados
+data = yf.download(ticker, start=start_date, end=end_date)
+data['RSI'] = compute_rsi(data)
+data['StochRSI'] = compute_stoch_rsi(data)
+
+# Título
+st.title("📊 Painel Profissional de Análise do Bitcoin")
+
+# Gráfico de Preço + Halvings
 fig = go.Figure()
-fig.add_trace(go.Scatter(x=btc.index, y=btc['Close'], name="BTC/USD"))
+fig.add_trace(go.Scatter(x=data.index, y=data['Close'], name='Preço BTC', line=dict(color='orange')))
 
-# Aplicação de análises básicas
-if analise == "Média Móvel 200":
-    btc['MM200'] = btc['Close'].rolling(window=200).mean()
-    fig.add_trace(go.Scatter(x=btc.index, y=btc['MM200'], name="Média Móvel 200", line=dict(color="orange")))
+# Marcar Halvings
+for halving in get_halving_dates():
+    if data.index[0] < halving < data.index[-1]:
+        fig.add_vline(x=halving, line=dict(color="blue", dash="dot"), annotation_text="Halving", annotation_position="top left")
 
-# Exibe gráfico
+fig.update_layout(title="Gráfico BTC + Halvings", xaxis_title="Data", yaxis_title="Preço (USD)")
 st.plotly_chart(fig, use_container_width=True)
 
-# Entrada de link externo
-link = st.text_input("Cole aqui o link do gráfico externo (LookIntoBitcoin, Glassnode etc.)")
+# Gráficos RSI
+st.subheader("📉 RSI Clássico e RSI Estocástico")
+rsi_fig = go.Figure()
+rsi_fig.add_trace(go.Scatter(x=data.index, y=data['RSI'], name='RSI 14', line=dict(color='green')))
+rsi_fig.add_trace(go.Scatter(x=data.index, y=data['StochRSI'], name='Stoch RSI', line=dict(color='purple')))
+rsi_fig.update_layout(title="RSI e RSI Estocástico", xaxis_title="Data", yaxis_title="Valor RSI")
+st.plotly_chart(rsi_fig, use_container_width=True)
 
-if st.button("Gerar Análise Simples"):
-    st.success("📝 Análise baseada nos dados selecionados:")
-    st.markdown(f"""
-    - **Período:** {start} até {end}  
-    - **Tipo de análise:** {analise}  
-    - **Fonte externa:** {link if link else "Não informado"}  
-    - **Resumo técnico (simulado):**  
-        - Preço atual comparado à MM200 pode indicar fase de acumulação.
-    """)
+st.markdown("---")
+st.info("✅ Em breve: Upload de dados on-chain e geração de relatório PDF")
