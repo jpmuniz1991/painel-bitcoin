@@ -28,4 +28,7 @@ def stochastic_rsi(data, period=14):
     stoch_rsi = (rsi - rsi.rolling(period).min()) / (rsi.rolling(period).max() - rsi.rolling(period).min())
     return stoch_rsi
 
-btc['StochRSI'] = stochasti
+btc['StochRSI'] = stochastic_rsi(btc)
+
+# Fibonacci - projeção
+def fibonacci_levels_
