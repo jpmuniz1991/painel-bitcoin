@@ -50,7 +50,12 @@ fig.add_trace(go.Scatter(x=data.index, y=data['Close'], name='Preço BTC', line=
 # Marcar Halvings
 for halving in get_halving_dates():
     if data.index[0] < halving < data.index[-1]:
-        fig.add_vline(x=halving, line=dict(color="blue", dash="dot"), annotation_text="Halving", annotation_position="top left")
+        fig.add_vline(
+    x=halving.strftime('%Y-%m-%d'),
+    line=dict(color="blue", dash="dot"),
+    annotation_text="Halving",
+    annotation_position="top left")
+
 
 fig.update_layout(title="Gráfico BTC + Halvings", xaxis_title="Data", yaxis_title="Preço (USD)")
 st.plotly_chart(fig, use_container_width=True)
